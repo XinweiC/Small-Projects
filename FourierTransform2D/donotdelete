@@ -1,0 +1,197 @@
+// Distributed two-dimensional Discrete FFT transform
+// YOUR NAME HERE
+// ECE8893 Project 1
+
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <signal.h>
+#include <math.h>
+#include <mpi.h>
+#include "Complex.h"
+#include "InputImage.h"
+
+using namespace std;
+void Transform1D(Complex* h, int w, Complex* H);
+void Transform1DColumn(Complex* h, int width,int height, Complex* H);
+void Transform2D(const char* inputFN)
+{ // Do the 2D transform here.
+  // 1) Use the InputImage object to read in the Tower.txt file and
+  //    find the width/height of the input image.
+  InputImage image(inputFN);
+  long width = image.GetWidth();
+  long height = image.GetHeight();
+  // 2) Use MPI to find how many CPUs in total, and which one
+  //    this process is
+    int nCpus,myrank;
+  MPI_Comm_size(MPI_COMM_WORLD, &nCpus);
+  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+  // 3) Allocate an array of Complex object of sufficient size to
+  //    hold the 2d DFT results (size is width * height)
+  long size = width*height;
+  Complex * array = new Complex[size];
+  // 4) Obtain a pointer to the Complex 1d array of input data
+  // 5) Do the individual 1D transforms on the rows assigned to your CPU
+  Complex * h = image.GetImageData();
+  Complex * H = new Complex[width*height];
+  Complex * midArray = new Complex[width*height];
+  for(int i = myrank*height/nCpus; i < myrank*height/nCpus +  height/nCpus; i++)
+  {
+	Transform1D(&h[width*i], width, &H[width*i]);
+  }
+  //return;
+  // 6) Send the resultant transformed values to the appropriate
+  //    other processors for the next phase.
+  // 6a) To send and receive columns, you might need a separate
+  //     Complex array of the correct size.
+ Complex * sendArray = new Complex[size]; 
+   for(int i = myrank*height/nCpus; i < myrank*height/nCpus +  height/nCpus; i++)
+  {
+		for(int j=0;j<width;j++)
+        {
+            sendArray[width*(i)+j]=H[width*i+j];
+            midArray[width*(i)+j]=H[width*i+j];
+        }
+  }
+      Complex ** receiveArray=new  Complex * [nCpus];
+      for(int i=0;i<nCpus;i++)
+	*(receiveArray+i)= new Complex[size];
+      MPI_Request* req = new MPI_Request[size];
+      for(int i=0;i<nCpus;i++)
+      int rc=MPI_Irecv((char *)(receiveArray[i]),size*sizeof(Complex), MPI_CHAR,MPI_ANY_SOURCE,0,MPI_COMM_WORLD,&req[i]);
+    for (int desitantion=0;desitantion<nCpus;desitantion++)
+    {	
+    MPI_Send((char *)sendArray, size*sizeof(Complex), MPI_CHAR, desitantion, 0, MPI_COMM_WORLD);
+    }
+  // 7) Receive messages from other processes to collect your columns
+   // int Counter=0;
+   // while (Counter!=nCpus-1)
+
+      
+   
+         
+        for(int count=0;count<nCpus;count++)
+        {
+	      MPI_Status status;
+	     MPI_Wait(&req[count], &status);
+             for(int i = status.MPI_SOURCE*height/nCpus; i < status.MPI_SOURCE*height/nCpus +  height/nCpus; i++)
+            {
+                for(int j=0;j<width;j++)
+                {
+                   midArray[width*(i)+j]=receiveArray[count][width*(i)+j];
+                }
+            }
+
+        }
+  // 8) When all columns received, do the 1D transforms on the columns
+  for(int i = myrank*width/nCpus; i < myrank*width/nCpus +  width/nCpus; i++)
+  {
+		Transform1DColumn(&midArray[i],width,height, &H[i]);
+  }
+
+  Complex * sendArray1 = new Complex[size];
+
+   for(int i = myrank*width/nCpus; i < myrank*width/nCpus +  width/nCpus; i++)
+  {
+		for(int j=0;j<height;j++)
+        {
+           sendArray1[j*width+i]=H[j*width+i];
+	   midArray[j*width+i]=H[j*width+i];
+        }
+  }
+  // 9) Send final answers to CPU 0 (unless you are CPU 0)
+  //   9a) If you are CPU 0, collect all values from other processors
+  //       and print out with SaveImageData().
+  if (myrank!=0)
+    {
+         
+     int rc = MPI_Send((char *)sendArray1, size*sizeof(Complex), MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+    }
+ // MPI_Barrier(MPI_COMM_WORLD);a
+   if(myrank==0)
+    {
+    
+        
+        Complex ** receiveArray=new  Complex * [nCpus];
+      for(int i=0;i<nCpus-1;i++)
+	*(receiveArray+i)= new Complex[size];
+      MPI_Request* req = new MPI_Request[size];
+      for(int i=0;i<nCpus-1;i++)
+      int rc=MPI_Irecv((char *)(receiveArray[i]),size*sizeof(Complex), MPI_CHAR,MPI_ANY_SOURCE,0,MPI_COMM_WORLD,&req[i]);
+      
+        for(int count=0;count<nCpus-1;count++)
+        {
+	      MPI_Status status;
+	     MPI_Wait(&req[count], &status);
+     
+
+            for(int i = status.MPI_SOURCE*width/nCpus; i < status.MPI_SOURCE*width/nCpus +  width/nCpus; i++)
+            {
+                for(int j=0;j<height;j++)
+                {
+                    midArray[j*width+(i)]=receiveArray[count][j*width+i];
+                }
+            }
+	}
+       
+    image.SaveImageData("Tower2DFT.txt",midArray,width,height);
+    
+    }
+    // Create the helper object for reading the image
+  // Step (1) in the comments is the line above.
+  // Your code here, steps 2-9
+}
+void T(Comlex * h1, Complex * h2,int width, int height)
+{
+	for(int i=0;i<width;i++)
+		for(int j=0;j<height;j++)
+		{
+			h2[width*j+i]=h1[width*i+j];
+		}
+}
+void Transform1D(Complex* h, int w, Complex* H)
+{
+  // Implement a simple 1-d DFT using the double summation equation
+  // given in the assignment handout.  h is the time-domain input
+  // data, w is the width (N), and H is the output array.
+    for(int n = 0 ; n < w ; ++n)
+    {
+        for(int k = 0 ; k < w ; ++k)
+        {
+          Complex temp = Complex(cos(2*M_PI*k*n/w),-sin(2*M_PI*k*n/w))*h[k];
+          H[n]=H[n]+ temp;
+        }
+    }
+}
+void Transform1DColumn(Complex* h, int width,int height, Complex* H)
+{
+  // Implement a simple 1-d DFT using the double summation equation
+  // given in the assignment handout.  h is the time-domain input
+  // data, w is the width (N), and H is the output array.
+    for(int n = 0 ; n < height ; ++n)
+    {
+        for(int k = 0 ; k < height ; ++k)
+        {
+          Complex temp = Complex(cos(2*M_PI*k*n/height),-sin(2*M_PI*k*n/height))*h[k*width];
+          H[n]=H[n]+ temp;
+        }
+    }
+}
+
+int main(int argc, char** argv)
+{
+  string fn("Tower.txt"); // default file name
+  if (argc > 1) fn = string(argv[1]);  // if name specified on cmd line
+  // MPI initialization here
+ MPI_Init(&argc,&argv);
+//cout<<"start";
+  Transform2D(fn.c_str()); // Perform the transform.
+  // Finalize MPI herea
+  MPI_Finalize();
+}
+
+
+

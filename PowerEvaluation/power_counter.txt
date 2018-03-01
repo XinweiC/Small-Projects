@@ -1,0 +1,27 @@
+Total number of instructions:        288523
+Total simulation cycles:        995461
+Number of floating point operations:        258
+Number of integer operations:        127172
+Number of branch instructions:        69375
+Number of load instructions:        66265
+Number of store instructions:        25453
+Number of I-cache access:        288523
+Number of branch mispredictions:        9810
+Number of scheduler access:                288523
+Number of register reads for integer operations:        590391
+Number of register reads for fp operations:                5
+Number of multiply instructions:        125453
+Number of data cache reads:        66265
+Number of data cache access:        70951
+Number of data cache write:        4686
+Number of memory read:        4686
+Number of memory write:        4686
+Number of total tlb access:        70951
+Noc0 total access:        9372
+system.mem.memory_access:        2343
+Number of register writes for integer operations:        385962
+Number of register writes for fp operations:        0
+fpcounter:        3030
+int_counter:        950128
+total:        953158
+-----------------------------------------------------

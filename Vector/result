@@ -1,0 +1,2 @@
+ /opt/valgrind-3.7.0/bin/valgrind --leak-check=full --tool=memcheck ./testVec
+
